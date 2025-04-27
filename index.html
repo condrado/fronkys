@@ -81,7 +81,7 @@
       color: white;
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tabletop.js/1.4.2/tabletop.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.1.0/papaparse.min.js"></script>
 </head>
 <body>
 
@@ -114,31 +114,51 @@
     let cartas = [];
     let usuarios = [];
 
-    function init() {
-      Tabletop.init({
-        key: 'https://docs.google.com/spreadsheets/d/1GhyuV3Ca1P-5yyDdlK26IsSi_BIp7P4GOfkNdqZ-Tpo/pubhtml', // <-- AQUÍ pones el ID de tu Google Sheet
-        simpleSheet: false,
-        callback: function(data, tabletop) {
-          cartas = tabletop.sheets('cartas').all().map(c => ({
+    const cartasURL = 'https://docs.google.com/spreadsheets/d/1GhyuV3Ca1P-5yyDdlK26IsSi_BIp7P4GOfkNdqZ-Tpo/export?format=csv&gid=1149711980';
+    const usuariosURL = 'https://docs.google.com/spreadsheets/d/1GhyuV3Ca1P-5yyDdlK26IsSi_BIp7P4GOfkNdqZ-Tpo/export?format=csv&gid=0';
+
+    function cargarDatos() {
+      Papa.parse(cartasURL, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          cartas = results.data.map(c => ({
             id: parseInt(c.id),
             titulo: c.titulo,
             puntos: parseInt(c.puntos),
             img: c.img
           }));
+          comprobarTodoCargado();
+        }
+      });
 
-          usuarios = tabletop.sheets('usuarios').all().map(u => ({
+      Papa.parse(usuariosURL, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          usuarios = results.data.map(u => ({
             nombre: u.nombre,
             cartasConseguidas: u.cartasConseguidas.split(',').map(id => parseInt(id.trim()))
           }));
-
-          cargarUsuarios();
+          comprobarTodoCargado();
         }
       });
     }
 
+    let cartasCargadas = false;
+    let usuariosCargados = false;
+
+    function comprobarTodoCargado() {
+      if(cartas.length > 0) cartasCargadas = true;
+      if(usuarios.length > 0) usuariosCargados = true;
+
+      if (cartasCargadas && usuariosCargados) {
+        cargarUsuarios();
+      }
+    }
+
     function cargarUsuarios() {
       const select = document.getElementById('user-select');
-      select.innerHTML = '';
       usuarios.forEach(user => {
         const option = document.createElement('option');
         option.value = user.nombre;
@@ -163,11 +183,11 @@
 
         const img = document.createElement('img');
         img.src = carta.img;
-
+        
         const title = document.createElement('div');
         title.className = 'card-title';
 
-        if (usuario.cartasConseguidas.includes(carta.id)) {
+        if(usuario.cartasConseguidas.includes(carta.id)){
           title.textContent = carta.titulo;
           conseguidas++;
         } else {
@@ -184,25 +204,25 @@
       actualizarRanking();
     }
 
-    function actualizarRanking() {
+    function actualizarRanking(){
       const tbody = document.getElementById('ranking');
       const ranking = usuarios.map(user => {
         return {
           nombre: user.nombre,
-          puntos: user.cartasConseguidas.reduce((acc, id) => acc + (cartas.find(c => c.id === id)?.puntos || 0), 0)
-        };
-      }).sort((a, b) => b.puntos - a.puntos);
+          puntos: user.cartasConseguidas.reduce((acc,id) => acc + (cartas.find(c => c.id === id)?.puntos || 0), 0)
+        }
+      }).sort((a,b) => b.puntos - a.puntos);
 
       tbody.innerHTML = '';
 
-      ranking.forEach((user, index) => {
+      ranking.forEach((user,index) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${index + 1}</td><td>${user.nombre}</td><td>${user.puntos}</td>`;
+        tr.innerHTML = `<td>${index+1}</td><td>${user.nombre}</td><td>${user.puntos}</td>`;
         tbody.appendChild(tr);
       });
     }
 
-    window.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('DOMContentLoaded', cargarDatos);
   </script>
 
 </body>
